@@ -5,10 +5,19 @@
     <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
-  <h1>Bonjour</h1>
-  Message : <input type="text" id="chat" />
-  <button onclick="sendMsg()">Send</button>  
+  <h1>Bonjour</h1>  
+
+   <input type="text" id="msg" placeholder="message">
+    <button onclick="sendMsg()">send</button>
+ <button onclick="displayMsg()">display</button>
+  {# <button onclick="displayOrdi()">display Ordi</button> #}
+
+  <input type="text" id="category" placeholder="Enter category (or leave empty)" />
+<button onclick="displayOrdi(document.getElementById('category').value)">Search</button>
+<div id="results"></div>
+
   <script>
+  var name= prompt('Enter your name')
   var socket = io();
   socket.on('msg',(data)=>{
     console.log(data)
@@ -16,11 +25,65 @@
     p.innerText= data
     document.body.append(p)
   })
+
   function sendMsg(){
-    var msg = document.getElementById('chat').value
+    
+    var msg  =document.getElementById('msg').value
     console.log(msg)
-    socket.emit('send-msg',msg)
-     }
+   // socket.emit('msg',msg)
+    
+    var data = {name:name,msg:msg}
+    socket.emit('msg',data)
+
+  }
+
+  function displayMsg(){
+    socket.emit('display-msg','Afficher les messages')
+  }
+
+ {#   function displayOrdi(){
+    socket.emit('display-ord','Afficher les ordinateurs')
+  }
+
+  socket.on('ordList',(data)=>{
+    console.log(data)
+    for(var i=0;i<data.length;i++){
+      var p = document.createElement('p')
+      p.innerText= data[i].modele + ' : ' + data[i].prix
+      document.body.append(p)
+    }
+  })
+ #}
+
+ function displayOrdi(categorie = '') {
+    console.log(`Fetching data for category: ${categorie || 'all categories'}`);
+    socket.emit('display-ord', categorie); // Emit the category for filtering
+}
+
+socket.on('ordList', (data) => {
+    console.log('Data received:', data);
+    const container = document.getElementById('results');
+    container.innerHTML = ''; // Clear previous results
+    for (var i = 0; i < data.length; i++) {
+        var p = document.createElement('p');
+        p.innerText = `${data[i].modele} : ${data[i].prix}`;
+        container.appendChild(p);
+    }
+});
+
+// Handle errors
+socket.on('error', (error) => {
+    console.error('Error:', error.message);
+});
+
+  socket.on('msgList',(data)=>{
+    console.log(data)
+    for(var i=0;i<data.length;i++){
+      var p = document.createElement('p')
+      p.innerText= data[i].name + ' : ' + data[i].msg
+      document.body.append(p)
+    }
+  })
   </script>
 </body>
 </html>

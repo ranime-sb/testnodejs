@@ -1,23 +1,25 @@
-var ordinateur = require('./ordinateurModel')
+var Ordinateur = require('./ordinateurModel')
+var socketIo = require('socket.io')
+
+
 async function list(req,res,next){
-    await ordinateur.find()
+    await Ordinateur.find()
               .then((data,err)=>{
                 if(err){
                     res.status(500).json(err)
                 }
                     res.status(200).json(data)
               })
-    //res.end('ordinateur List')
 }
 
 const create =async (req,res,next)=>{
-    const { modele,categorie,dateFabrication,prix } = req.body 
+    const { modele,categorie,date_fabrication,prix } = req.body 
     console.log(req.body.modele);
     console.log(req.params);
-    await new ordinateur({
+    await new Ordinateur({
         modele: modele,
         categorie: categorie,
-        dateFabrication: dateFabrication,
+        date_fabrication: date_fabrication,
         prix: prix
     }).save()
       .then((data, err)=>{
@@ -26,19 +28,19 @@ const create =async (req,res,next)=>{
             }
             console.log(data);
       })
-    
-res.json('ordinateur added ! modele : '+ modele + ' categorie : '+ categorie+ ' dateFabrication : '+ dateFabrication+ 'prix:'+prix)
+
+res.json('Ordinateur added ! modele : '+ modele + ' categorie : '+ categorie+ ' date_fabrication : '+ date_fabrication + ' prix : '+ prix)
 }
 
 const update = async (req, res, next)=>{
-    await ordinateur.findByIdAndUpdate(req.params.id, req.body)
+    await Ordinateur.findByIdAndUpdate(req.params.id, req.body)
               .then((data, err)=>{
                 res.json(data)
               })
 }
 
-async function deleteO(req, res, next) {
-    await ordinateur.findByIdAndDelete(req.params.id)
+async function deleteU(req, res, next) {
+    await Ordinateur.findByIdAndDelete(req.params.id)
               .then((data, err)=>{
                 if(err){
                     res.status(500).json(err)
@@ -47,23 +49,48 @@ async function deleteO(req, res, next) {
               })
 }
 
-const searchByPrice = async (req, res, next) => {
-    const { prixMin, prixMax } = req.query;
-
-    if (!prixMin || !prixMax) {
-        return res.status(400).json({ message: 'Les paramètres prixMin et prixMax sont requis.' });
-    }
-
+const searchByPrice = async (req, res) => {
+    const { minPrice, maxPrice } = req.query;
     try {
-        const resultats = await ordinateur.find({
-            prix: { $gte: Number(prixMin), $lte: Number(prixMax) },
+        const ordinateurs = await Ordinateur.find({
+            prix: { $gte: minPrice, $lte: maxPrice }
         });
-
-        res.status(200).json(resultats);
-    } catch (err) {
-        res.status(500).json({ message: 'Erreur serveur.', error: err });
+        res.status(200).json(ordinateurs);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
     }
 };
 
 
-module.exports = { create, list, update, deleteO,searchByPrice }
+
+const socketIO = (server) => {
+    const io = socketIo(server);
+  
+
+    io.on('connection', (socket) => {
+        console.log('User connected via Socket.IO');
+
+        socket.on('display-ord', async (categorie) => {
+                    try {
+                        let ords;
+                        if (categorie) {
+                            ords = await ordinateurModel.find({ categorie });
+                            console.log(`Data found for category "${categorie}":`, ords);
+                        } else {
+                       
+                            ords = await ordinateurModel.find();
+                            console.log('All data:', ords);
+                        }
+                        io.emit('ordList', ords); 
+                    } catch (error) {
+                        console.error('Error fetching data:', error.message);
+                        io.emit('error', { message: 'Failed to fetch data' }); 
+                    }
+         });
+
+    });
+
+    return io;
+};
+
+module.exports = { socketIO ,create, list, update, deleteU, searchByPrice }
